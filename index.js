@@ -119,18 +119,18 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // ─── Start server ─────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
+
+// Listen immediately so Cloud Run health check passes before DB connects
+server.listen(PORT, () => {
+  console.log(`[Server] Running on port ${PORT} — ${process.env.NODE_ENV || "development"} mode`);
+  console.log(`[CORS] Allowed origins: ${allowedOrigins.join(", ")}`);
+});
 
 async function startServer() {
   try {
     await connectDB();
     initSocket(server, allowedOrigins);
-    server.listen(PORT, () => {
-      console.log(
-        `[Server] Running on port ${PORT} — ${process.env.NODE_ENV || "development"} mode`
-      );
-      console.log(`[CORS] Allowed origins: ${allowedOrigins.join(", ")}`);
-    });
   } catch (error) {
     console.error("[FATAL] Failed to start server:", error.message);
     process.exit(1);

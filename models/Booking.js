@@ -96,6 +96,13 @@ const BookingSchema = new mongoose.Schema(
     ratingId: { type: mongoose.Schema.Types.ObjectId, ref: "ProviderRating" },
     isRated:  { type: Boolean, default: false },
 
+    // ── Provider live location (broadcast via Socket.io when on the way) ─────────
+    providerCurrentLocation: {
+      lat:       { type: Number },
+      lng:       { type: Number },
+      updatedAt: { type: Date },
+    },
+
     // ── Notes ─────────────────────────────────────────────────────────────────
     customerNote: { type: String, trim: true, maxlength: 300 },
   },

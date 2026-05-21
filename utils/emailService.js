@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 const { generateInvoicePdf } = require("./invoicePdf");
 
+// All clickable links in emails use this base URL.
+// Set FRONTEND_URL in production .env to your real domain.
+const FRONTEND_URL = (process.env.FRONTEND_URL || "${FRONTEND_URL}").replace(/\/$/, "");
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT),
@@ -292,7 +296,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
       <!-- CTA Button -->
       <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
         <td align="center">
-          <a href="http://localhost:3000/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:16px 40px;border-radius:8px;">
+          <a href="${FRONTEND_URL}/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:16px 40px;border-radius:8px;">
             Open ServiceMarket →
           </a>
         </td>
@@ -384,7 +388,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
 
       <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
         <td align="center">
-          <a href="http://localhost:3000/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:8px;">
+          <a href="${FRONTEND_URL}/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:8px;">
             Update My Application →
           </a>
         </td>
@@ -458,7 +462,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
       </p>
       <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
         <td align="center">
-          <a href="http://localhost:3000/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:8px;">
+          <a href="${FRONTEND_URL}/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:8px;">
             Contact Support →
           </a>
         </td>
@@ -564,7 +568,7 @@ async function sendBookingConfirmedEmail(to, name, booking) {
     <p style="margin:0 0 24px;font-size:13px;color:#71717a;">Share the 4-digit OTP on your booking details page with the technician when they arrive to start the job.</p>
     <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
       <td align="center">
-        <a href="http://localhost:3000/bookings/${booking._id}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View Booking →</a>
+        <a href="${FRONTEND_URL}/bookings/${booking._id}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View Booking →</a>
       </td>
     </tr></table>`;
 
@@ -590,7 +594,7 @@ async function sendNewJobEmail(to, providerName, booking, customerName = "") {
     </table>
     <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
       <td align="center">
-        <a href="http://localhost:3000/dashboard/provider/orders" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View in Dashboard →</a>
+        <a href="${FRONTEND_URL}/dashboard/provider/orders" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View in Dashboard →</a>
       </td>
     </tr></table>`;
 
@@ -613,7 +617,7 @@ async function sendJobAcceptedEmail(to, customerName, booking, providerName) {
     </table>
     <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
       <td align="center">
-        <a href="http://localhost:3000/bookings/${booking._id}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View Booking & OTP →</a>
+        <a href="${FRONTEND_URL}/bookings/${booking._id}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View Booking & OTP →</a>
       </td>
     </tr></table>`;
 
@@ -655,7 +659,7 @@ async function sendJobCompletedEmail(to, customerName, booking, providerInfo = {
     </table>
     <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
       <td align="center">
-        <a href="http://localhost:3000/bookings/${booking._id}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View Invoice</a>
+        <a href="${FRONTEND_URL}/bookings/${booking._id}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:14px 32px;border-radius:8px;">View Invoice</a>
       </td>
     </tr></table>`;
 

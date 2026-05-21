@@ -10,9 +10,14 @@ const {
   validateForgotPassword,
   validateResetPassword,
 } = require("../middleware/validators/authValidators");
+const { protect } = require("../middleware/auth");
 const {
   register,
   login,
+  checkEmail,
+  getMe,
+  getWsToken,
+  logout,
   sendRegisterOTP,
   verifyRegisterOTP,
   sendProviderOTP,
@@ -20,6 +25,14 @@ const {
   forgotPassword,
   resetPassword,
 } = require("../controllers/authController");
+
+// Email availability (on blur in register form — rate-limited to prevent harvesting)
+router.get ("/check-email",          authLimiter,                             checkEmail);
+
+// Session management (cookie-based)
+router.get ("/me",                  protect,                             getMe);
+router.get ("/ws-token",            protect,                             getWsToken);
+router.post("/logout",              protect,                             logout);
 
 // Registration & login (15 attempts / 15 min)
 router.post("/register",            authLimiter, validateRegister,       register);

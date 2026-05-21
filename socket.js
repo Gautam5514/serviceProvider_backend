@@ -19,7 +19,15 @@ function initSocket(server, allowedOrigins) {
 
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
+      // 1. Explicit token sent by the client (wsToken from sessionStorage)
+      // 2. Fallback: httpOnly cookie forwarded in the upgrade request headers
+      const cookieHeader = socket.handshake.headers.cookie || "";
+      const cookieToken  = cookieHeader
+        .split(";")
+        .find(c => c.trim().startsWith("token="))
+        ?.split("=")[1];
+
+      const token = socket.handshake.auth?.token || cookieToken;
       if (!token) return next(new Error("Missing auth token"));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -61,8 +69,16 @@ function emitToUsers(userIds, event, payloadByUserId) {
   });
 }
 
+// Broadcast to every connected user that belongs to a given role.
+// Uses the role:{role} room that every socket joins on auth.
+function emitToRole(role, event, payload) {
+  if (!ioInstance || !role) return;
+  ioInstance.to(`role:${role}`).emit(event, payload);
+}
+
 module.exports = {
   initSocket,
   emitToUser,
   emitToUsers,
+  emitToRole,
 };

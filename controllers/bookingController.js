@@ -8,6 +8,7 @@ const {
   sendJobCompletedEmail,
 } = require("../utils/emailService");
 const { createNotification, notifyMany } = require("../utils/notificationService");
+const { emitToUser } = require("../socket");
 
 const DAY_MAP = ["sun","mon","tue","wed","thu","fri","sat"];
 
@@ -214,13 +215,29 @@ const createBooking = async (req, res) => {
     let discount = 0;
     let couponCode = null;
     if (req.body.couponCode) {
-      const coupon = await Coupon.findOne({ code: req.body.couponCode.toUpperCase().trim(), isActive: true });
-      if (coupon && new Date() < coupon.expiresAt && (coupon.maxUses === null || coupon.usedCount < coupon.maxUses)) {
-        discount = coupon.discountType === "percent"
+      // ATOMIC coupon redemption — find + increment in a single MongoDB operation.
+      // Prevents two concurrent bookings from both passing the usedCount < maxUses
+      // guard and over-redeeming the same limited coupon.
+      // `new: false` returns the doc as it was BEFORE the increment so the
+      // original discountValue is used for the calculation below.
+      const coupon = await Coupon.findOneAndUpdate(
+        {
+          code:      req.body.couponCode.toUpperCase().trim(),
+          isActive:  true,
+          expiresAt: { $gt: new Date() },
+          $or: [
+            { maxUses: null },
+            { $expr: { $lt: ["$usedCount", "$maxUses"] } },
+          ],
+        },
+        { $inc: { usedCount: 1 } },
+        { new: false }
+      );
+      if (coupon) {
+        discount   = coupon.discountType === "percent"
           ? Math.round((basePrice * coupon.discountValue) / 100)
           : coupon.discountValue;
         couponCode = coupon.code;
-        await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
       }
     }
 
@@ -390,24 +407,75 @@ const getProviderJobs = async (req, res) => {
 };
 
 // ─── PUT /api/bookings/:id/accept ─────────────────────────────────────────────
+// Two cases are handled:
+//
+//   BROADCAST (providerId: null, status: "pending")
+//     Any approved provider whose categories and location match can claim it.
+//     Uses an atomic findOneAndUpdate so two simultaneous accepts cannot both
+//     succeed — identical to the pickupJob logic.
+//
+//   PRE-ASSIGNED (providerId set, status: "pending")
+//     Only the already-assigned provider can accept (legacy / admin-assign flow).
+//     A simple findByIdAndUpdate is safe here because the booking belongs to
+//     exactly one provider.
 const acceptJob = async (req, res) => {
   try {
     const provider = await Provider.findOne({ userId: req.user._id });
-    if (!provider) return res.status(404).json({ success: false, message: "Provider profile not found" });
+    if (!provider)
+      return res.status(404).json({ success: false, message: "Provider profile not found" });
+    if (!provider.isActive || provider.onboardingStatus !== "approved")
+      return res.status(403).json({ success: false, message: "Your profile must be approved to accept jobs." });
 
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
-    if (booking.providerId?.toString() !== provider._id.toString()) {
-      return res.status(403).json({ success: false, message: "This job is not assigned to you" });
+    const snap = await Booking.findById(req.params.id).lean();
+    if (!snap)
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    if (snap.status !== "pending")
+      return res.status(400).json({ success: false, message: `Cannot accept a booking with status: ${snap.status}` });
+
+    let booking;
+
+    if (!snap.providerId) {
+      // ── BROADCAST JOB ───────────────────────────────────────────────────────
+      if (!providerCanServeCategory(provider, snap.serviceCategory)) {
+        return res.status(403).json({
+          success: false,
+          message: "This job does not match your approved service categories.",
+        });
+      }
+      const availability = await ProviderAvailability.findOne({ providerId: provider._id });
+      const locationMatch = jobMatchesProviderLocation(provider, availability, snap);
+      if (!locationMatch.matches) {
+        return res.status(403).json({
+          success: false,
+          message: "This job is outside your service location or working radius.",
+        });
+      }
+
+      // Atomic — only one provider's write can match this filter.
+      booking = await Booking.findOneAndUpdate(
+        { _id: req.params.id, status: "pending", providerId: null },
+        { $set: { providerId: provider._id, status: "accepted" } },
+        { new: true }
+      );
+      if (!booking) {
+        return res.status(409).json({
+          success: false,
+          message: "This job was just claimed by another provider.",
+        });
+      }
+    } else {
+      // ── PRE-ASSIGNED JOB ────────────────────────────────────────────────────
+      if (snap.providerId.toString() !== provider._id.toString()) {
+        return res.status(403).json({ success: false, message: "This job is not assigned to you" });
+      }
+      booking = await Booking.findByIdAndUpdate(
+        req.params.id,
+        { $set: { status: "accepted" } },
+        { new: true }
+      );
     }
-    if (booking.status !== "pending") {
-      return res.status(400).json({ success: false, message: `Cannot accept a booking with status: ${booking.status}` });
-    }
 
-    booking.status = "accepted";
-    await booking.save();
-
-    const [customer, providerUser] = await Promise.all([
+    const [, providerUser] = await Promise.all([
       User.findById(booking.customerId).select("fullName"),
       User.findById(provider.userId).select("fullName"),
     ]);
@@ -655,6 +723,9 @@ const getAvailableJobs = async (req, res) => {
 
 // ─── PUT /api/bookings/:id/pickup ─────────────────────────────────────────────
 // Provider claims an unassigned booking from the job pool.
+// ATOMIC: the final write uses findOneAndUpdate with { status:"pending",
+// providerId:null } as the filter, so two simultaneous requests can never both
+// succeed — MongoDB guarantees only one document matches and gets updated.
 const pickupJob = async (req, res) => {
   try {
     const provider = await Provider.findOne({ userId: req.user._id });
@@ -663,15 +734,17 @@ const pickupJob = async (req, res) => {
     if (!provider.isActive || provider.onboardingStatus !== "approved")
       return res.status(403).json({ success: false, message: "Your profile must be approved to accept jobs." });
 
-    const booking = await Booking.findById(req.params.id);
-    if (!booking)
+    // Read-only snapshot for validation — safe to do before the atomic write
+    // because service-category and location checks don't change between read & write.
+    const snap = await Booking.findById(req.params.id).lean();
+    if (!snap)
       return res.status(404).json({ success: false, message: "Booking not found." });
-    if (booking.status !== "pending")
+    if (snap.status !== "pending")
       return res.status(400).json({ success: false, message: "This booking is no longer available." });
-    if (booking.providerId)
+    if (snap.providerId)
       return res.status(409).json({ success: false, message: "This job was just claimed by another provider. Please check other available jobs." });
 
-    if (!providerCanServeCategory(provider, booking.serviceCategory)) {
+    if (!providerCanServeCategory(provider, snap.serviceCategory)) {
       return res.status(403).json({
         success: false,
         message: "This job does not match your approved service categories.",
@@ -679,7 +752,7 @@ const pickupJob = async (req, res) => {
     }
 
     const availability = await ProviderAvailability.findOne({ providerId: provider._id });
-    const locationMatch = jobMatchesProviderLocation(provider, availability, booking);
+    const locationMatch = jobMatchesProviderLocation(provider, availability, snap);
     if (!locationMatch.matches) {
       return res.status(403).json({
         success: false,
@@ -687,11 +760,23 @@ const pickupJob = async (req, res) => {
       });
     }
 
-    booking.providerId = provider._id;
-    booking.status     = "accepted"; // picked up = immediately accepted
-    await booking.save();
+    // ATOMIC CLAIM — only succeeds when no other provider has already set
+    // providerId. If the filter misses (race condition), findOneAndUpdate
+    // returns null and we surface the 409 immediately.
+    const booking = await Booking.findOneAndUpdate(
+      { _id: req.params.id, status: "pending", providerId: null },
+      { $set: { providerId: provider._id, status: "accepted" } },
+      { new: true }
+    );
 
-    const [customer, providerUser] = await Promise.all([
+    if (!booking) {
+      return res.status(409).json({
+        success: false,
+        message: "This job was just claimed by another provider. Please check other available jobs.",
+      });
+    }
+
+    const [, providerUser] = await Promise.all([
       User.findById(booking.customerId).select("fullName"),
       User.findById(provider.userId).select("fullName"),
     ]);
@@ -719,6 +804,167 @@ const pickupJob = async (req, res) => {
   }
 };
 
+// ─── GET /api/bookings/provider/earnings ──────────────────────────────────────
+const getProviderEarnings = async (req, res) => {
+  try {
+    const provider = await Provider.findOne({ userId: req.user._id }).lean();
+    if (!provider)
+      return res.status(404).json({ success: false, message: "Provider profile not found." });
+
+    const now          = new Date();
+    const startOfWeek  = new Date(now); startOfWeek.setDate(now.getDate() - 6); startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const allDone = await Booking.find({
+      providerId: provider._id,
+      status:     "completed",
+    }).select("pricing completedAt serviceCategory scheduledDate").lean();
+
+    const sum    = arr => arr.reduce((s, j) => s + (j.pricing?.totalAmount || 0), 0);
+    const payout = arr => arr.reduce((s, j) => {
+      const base = j.pricing?.basePrice || 0;
+      const fee  = j.pricing?.platformFee || 0;
+      const tax  = j.pricing?.tax || 0;
+      return s + Math.max(0, base - fee - tax);
+    }, 0);
+
+    const thisWeek  = allDone.filter(j => j.completedAt && new Date(j.completedAt) >= startOfWeek);
+    const thisMonth = allDone.filter(j => j.completedAt && new Date(j.completedAt) >= startOfMonth);
+
+    // Revenue by category for this month
+    const byCategory = thisMonth.reduce((acc, j) => {
+      const cat = j.serviceCategory || "other";
+      acc[cat] = (acc[cat] || 0) + (j.pricing?.totalAmount || 0);
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      earnings: {
+        total:          sum(allDone),
+        thisMonth:      sum(thisMonth),
+        thisWeek:       sum(thisWeek),
+        myPayoutTotal:  payout(allDone),
+        myPayoutMonth:  payout(thisMonth),
+        jobCount:       allDone.length,
+        jobsThisMonth:  thisMonth.length,
+        jobsThisWeek:   thisWeek.length,
+        byCategory,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch earnings." });
+  }
+};
+
+// ─── PUT /api/bookings/:id/location ──────────────────────────────────────────
+// Provider sends their current GPS coordinates while on the way.
+// Stores the last-known location on the booking and broadcasts via Socket.io
+// to both the customer's room and the provider's own room.
+const updateProviderLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      return res.status(400).json({ success: false, message: "Valid lat and lng coordinates are required." });
+    }
+
+    const provider = await Provider.findOne({ userId: req.user._id });
+    if (!provider) return res.status(404).json({ success: false, message: "Provider profile not found." });
+
+    const booking = await Booking.findById(req.params.id).lean();
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found." });
+    if (booking.providerId?.toString() !== provider._id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied." });
+    }
+    if (!["accepted", "provider_on_way", "in_progress"].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: "Location sharing is only active for in-progress bookings." });
+    }
+
+    // Calculate straight-line distance to customer's address
+    let distKm = null;
+    const cLat = booking.address?.lat;
+    const cLng = booking.address?.lng;
+    if (Number.isFinite(cLat) && Number.isFinite(cLng)) {
+      distKm = Number(distanceKm({ lat: latNum, lng: lngNum }, { lat: cLat, lng: cLng }).toFixed(2));
+    }
+
+    // Persist last known location (fire-and-forget — don't block the response)
+    Booking.findByIdAndUpdate(booking._id, {
+      providerCurrentLocation: { lat: latNum, lng: lngNum, updatedAt: new Date() },
+    }).catch(console.error);
+
+    const payload = {
+      bookingId:  booking._id,
+      lat:        latNum,
+      lng:        lngNum,
+      distKm,
+      timestamp:  new Date().toISOString(),
+    };
+
+    // Broadcast to customer so they see the provider moving on their map
+    emitToUser(booking.customerId.toString(), "provider:location:update", payload);
+    // Echo back to the provider's own room (they see their position on their map too)
+    emitToUser(provider.userId.toString(), "provider:location:update", payload);
+
+    res.json({ success: true, distKm });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to update location." });
+  }
+};
+
+// ─── PUT /api/bookings/:id/dispute ───────────────────────────────────────────
+// Customer or provider raises a dispute on a booking.
+const raiseDispute = async (req, res) => {
+  try {
+    const { reason, description } = req.body;
+    if (!reason)
+      return res.status(400).json({ success: false, message: "Dispute reason is required." });
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking)
+      return res.status(404).json({ success: false, message: "Booking not found." });
+
+    const userId     = req.user._id.toString();
+    const isCustomer = booking.customerId?.toString() === userId;
+    const isAdmin    = req.user.role === "admin";
+
+    // Provider check
+    const provider = await Provider.findOne({ userId: req.user._id }).lean();
+    const isProvider = provider && booking.providerId?.toString() === provider._id.toString();
+
+    if (!isCustomer && !isProvider && !isAdmin)
+      return res.status(403).json({ success: false, message: "Access denied." });
+
+    if (booking.status === "disputed")
+      return res.status(400).json({ success: false, message: "A dispute has already been raised for this booking." });
+
+    if (!["in_progress", "completed", "accepted", "provider_on_way"].includes(booking.status))
+      return res.status(400).json({ success: false, message: `Cannot raise a dispute on a ${booking.status} booking.` });
+
+    booking.status        = "disputed";
+    booking.cancelReason  = `DISPUTE — ${reason}: ${description || ""}`.trim();
+    booking.cancelledAt   = new Date();
+    booking.cancelledBy   = isAdmin ? "admin" : isCustomer ? "customer" : "provider";
+    await booking.save();
+
+    // Notify admin
+    createNotification({
+      recipientRole: "admin",
+      type:          "booking_created",
+      title:         "Dispute raised",
+      message:       `${req.user.fullName} raised a dispute on booking ${booking.bookingNumber}: ${reason}`,
+      bookingId:     booking._id,
+    }).catch(console.error);
+
+    res.json({ success: true, message: "Dispute raised. Our support team will review within 24 hours.", booking });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to raise dispute." });
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
@@ -733,4 +979,7 @@ module.exports = {
   startJob,
   completeJob,
   getAllBookings,
+  updateProviderLocation,
+  getProviderEarnings,
+  raiseDispute,
 };

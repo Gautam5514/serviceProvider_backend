@@ -9,7 +9,7 @@ const mongoSanitize = require("express-mongo-sanitize");
 dotenv.config();
 
 // ─── Environment validation — fail fast before any code runs ─────────────────
-const REQUIRED_ENV = ["MONGODB_URI", "JWT_SECRET", "SMTP_HOST", "SMTP_USER", "SMTP_PASS"];
+const REQUIRED_ENV = ["MONGODB_URI", "JWT_SECRET", "SMTP_HOST", "SMTP_USER", "SMTP_PASS", "FRONTEND_URL"];
 const missingVars = REQUIRED_ENV.filter((key) => !process.env[key]);
 if (missingVars.length > 0) {
   console.error(`\n[FATAL] Missing required environment variables: ${missingVars.join(", ")}`);
@@ -103,6 +103,9 @@ app.use("/api/addresses",     require("./routes/addressRoutes"));
 app.use("/api/coupons",       require("./routes/couponRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/search",        require("./routes/searchRoutes"));
+app.use("/api/stats",         require("./routes/statsRoutes"));
+app.use("/api/support",        require("./routes/supportRoutes"));
+app.use("/api/testimonials",   require("./routes/testimonialRoutes"));
 
 // ─── Static files (uploaded images / PDFs) ───────────────────────────────────
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

@@ -16,6 +16,27 @@ function signToken(payload, expiresIn) {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 }
 
+// Sets the main auth token as an httpOnly cookie (XSS-safe).
+// The cookie goes through the Next.js proxy so domain=localhost:3000.
+function setAuthCookie(res, token) {
+  res.cookie("token", token, {
+    httpOnly:  true,
+    secure:    process.env.NODE_ENV === "production",
+    sameSite:  process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge:    7 * 24 * 60 * 60 * 1000, // 7 days
+    path:      "/",
+  });
+}
+
+// Short-lived token specifically for Socket.io auth (JS-readable, 2 h).
+function issueWsToken(user) {
+  return signToken({ id: user._id, email: user.email, role: user.role }, "2h");
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie("token", { httpOnly: true, sameSite: "lax", path: "/" });
+}
+
 // Sends OTP email and returns a short-lived verification token.
 // Throws AppError on duplicate email, resend-too-soon, etc.
 async function _sendOTP(email, purpose) {
@@ -183,20 +204,57 @@ const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email: email.toLowerCase().trim() });
-  // Deliberate vague message — don't confirm whether email exists
   if (!user) throw new AppError("Incorrect email or password.", 401);
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new AppError("Incorrect email or password.", 401);
 
-  const token = signToken({ id: user._id, email: user.email, role: user.role }, "7d");
+  const mainToken = signToken({ id: user._id, email: user.email, role: user.role }, "7d");
+
+  // httpOnly cookie — XSS cannot read this token
+  setAuthCookie(res, mainToken);
 
   res.status(200).json({
-    success: true,
-    message: "Login successful.",
-    token,
-    user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role },
+    success:  true,
+    message:  "Login successful.",
+    wsToken:  issueWsToken(user), // short-lived, for Socket.io only
+    user:     { id: user._id, fullName: user.fullName, email: user.email, role: user.role },
   });
+});
+
+// ─── GET /auth/check-email?email=... ──────────────────────────────────────────
+// Fast email availability check — called on blur in the register form.
+// Rate-limited by authLimiter (15 / 15 min) to prevent email harvesting.
+const checkEmail = catchAsync(async (req, res) => {
+  const email = String(req.query.email || "").toLowerCase().trim();
+  const valid  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  if (!valid) return res.json({ success: true, available: false, reason: "invalid" });
+
+  const taken = await User.exists({ email });
+  res.json({ success: true, available: !taken, reason: taken ? "taken" : null });
+});
+
+// ─── GET /auth/me ─────────────────────────────────────────────────────────────
+// Verifies the httpOnly cookie and returns the current user.
+// Useful for session hydration on app load.
+const getMe = catchAsync(async (req, res) => {
+  res.json({
+    success: true,
+    user:    { id: req.user._id, fullName: req.user.fullName, email: req.user.email, role: req.user.role },
+  });
+});
+
+// ─── GET /auth/ws-token ───────────────────────────────────────────────────────
+// Issues a fresh short-lived Socket.io token from a valid cookie session.
+// Called when sessionStorage loses the wsToken (e.g. new tab).
+const getWsToken = catchAsync(async (req, res) => {
+  res.json({ success: true, wsToken: issueWsToken(req.user) });
+});
+
+// ─── POST /auth/logout ────────────────────────────────────────────────────────
+const logout = catchAsync(async (_req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true, message: "Logged out successfully." });
 });
 
 // ─── POST /auth/forgot-password ───────────────────────────────────────────────
@@ -288,6 +346,10 @@ const resetPassword = catchAsync(async (req, res) => {
 module.exports = {
   register,
   login,
+  checkEmail,
+  getMe,
+  getWsToken,
+  logout,
   sendRegisterOTP,
   verifyRegisterOTP,
   sendProviderOTP,

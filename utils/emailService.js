@@ -22,8 +22,8 @@ function buildOTPEmail(otp, purpose) {
   const isProvider = purpose === "provider_email_verify";
 
   const subject = isReset
-    ? "Reset Your Password — ServiceMarket"
-    : "Your Verification Code — ServiceMarket";
+    ? "Reset Your Password — EliteCrew"
+    : "Your Verification Code — EliteCrew";
 
   const accentColor = isReset ? "#dc2626" : "#2563eb";
   const badgeBg     = isReset ? "#fef2f2" : "#eff6ff";
@@ -32,10 +32,10 @@ function buildOTPEmail(otp, purpose) {
   const headline    = isReset ? "Reset your password" : "Verify your email address";
 
   const bodyText = isReset
-    ? "We received a request to reset the password on your ServiceMarket account. Use the one-time code below to proceed. If you did not make this request, simply ignore this email \u2014 your account is safe."
+    ? "We received a request to reset the password on your EliteCrew account. Use the one-time code below to proceed. If you did not make this request, simply ignore this email \u2014 your account is safe."
     : isProvider
-    ? "Welcome to ServiceMarket. Complete your provider registration by verifying your email with the code below. This keeps your account secure."
-    : "Welcome to ServiceMarket! One last step \u2014 enter the code below to verify your email and activate your account.";
+    ? "Welcome to EliteCrew. Complete your provider registration by verifying your email with the code below. This keeps your account secure."
+    : "Welcome to EliteCrew! One last step \u2014 enter the code below to verify your email and activate your account.";
 
   const digitCells = otp.split("").map(d =>
     `<td style="padding:0 4px;">` +
@@ -137,7 +137,7 @@ function buildOTPEmail(otp, purpose) {
                   <p style="margin:0 0 3px;font-size:11px;font-weight:800;color:#78350f;
                     text-transform:uppercase;letter-spacing:0.8px;">Security Notice</p>
                   <p style="margin:0;font-size:13px;color:#92400e;line-height:1.55;">
-                    Never share this code with anyone. ServiceMarket will
+                    Never share this code with anyone. EliteCrew will
                     <strong style="color:#78350f;">never</strong> call or message you asking for your OTP.
                   </p>
                 </td>
@@ -153,7 +153,7 @@ function buildOTPEmail(otp, purpose) {
       <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:22px 40px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
           <td style="vertical-align:middle;">
-            <p style="margin:0 0 2px;font-size:13px;font-weight:800;color:#09090b;">ServiceMarket</p>
+            <p style="margin:0 0 2px;font-size:13px;font-weight:800;color:#09090b;">EliteCrew</p>
             <p style="margin:0;font-size:12px;color:#94a3b8;">Professional Home Services Platform</p>
           </td>
           <td align="right" style="vertical-align:middle;">
@@ -175,7 +175,7 @@ function buildOTPEmail(otp, purpose) {
           If you didn&rsquo;t request this, you can safely ignore this email.
         </p>
         <p style="margin:0;font-size:11px;color:#cbd5e1;">
-          &copy; ${year} ServiceMarket &middot; Professional Home Services
+          &copy; ${year} EliteCrew &middot; Professional Home Services
         </p>
       </td>
     </tr>
@@ -193,7 +193,7 @@ function buildOTPEmail(otp, purpose) {
 async function sendOTPEmail(to, otp, purpose) {
   const { subject, html } = buildOTPEmail(otp, purpose);
   await transporter.sendMail({
-    from: `"ServiceMarket" <${process.env.SMTP_FROM}>`,
+    from: `"EliteCrew" <${process.env.SMTP_FROM}>`,
     to,
     subject,
     html,
@@ -204,7 +204,7 @@ async function sendOTPEmail(to, otp, purpose) {
 
 function buildDecisionEmail(providerName, decision, remarks) {
   if (decision === "approved") {
-    const subject = "🎉 Congratulations! You're Approved — ServiceMarket";
+    const subject = "🎉 Congratulations! You're Approved — EliteCrew";
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -244,7 +244,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
   <tr>
     <td style="padding:0 40px 40px;">
       <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.7;text-align:center;">
-        Your ServiceMarket provider profile is now <strong style="color:#09090b;">live and active</strong>. Customers in your area can now find and book your services.
+        Your EliteCrew provider profile is now <strong style="color:#09090b;">live and active</strong>. Customers in your area can now find and book your services.
       </p>
 
       <!-- What's next card -->
@@ -297,7 +297,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
       <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
         <td align="center">
           <a href="${FRONTEND_URL}/login" style="display:inline-block;background:#000;color:#fff;text-decoration:none;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:16px 40px;border-radius:8px;">
-            Open ServiceMarket →
+            Open EliteCrew →
           </a>
         </td>
       </tr></table>
@@ -309,7 +309,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
     <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 40px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
         <td>
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#09090b;">ServiceMarket</p>
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#09090b;">EliteCrew</p>
           <p style="margin:0;font-size:12px;color:#a1a1aa;">Professional Home Services Platform</p>
         </td>
         <td align="right" valign="middle">
@@ -327,7 +327,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
   }
 
   if (decision === "rejected") {
-    const subject = "Application Update — ServiceMarket";
+    const subject = "Application Update — EliteCrew";
     const remarksBlock = remarks
       ? `<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 28px;">
           <tr><td style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:18px 20px;">
@@ -363,7 +363,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
     <td style="padding:48px 40px 40px;">
       <h1 style="margin:0 0 12px;font-size:26px;font-weight:900;color:#09090b;letter-spacing:-0.5px;">Hi ${providerName},</h1>
       <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.7;">
-        Thank you for applying to join ServiceMarket as a service provider. After carefully reviewing your application, we're <strong style="color:#09090b;">unable to approve it at this time</strong>.
+        Thank you for applying to join EliteCrew as a service provider. After carefully reviewing your application, we're <strong style="color:#09090b;">unable to approve it at this time</strong>.
       </p>
 
       ${remarksBlock}
@@ -400,7 +400,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
     <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 40px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
         <td>
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#09090b;">ServiceMarket</p>
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#09090b;">EliteCrew</p>
           <p style="margin:0;font-size:12px;color:#a1a1aa;">Professional Home Services Platform</p>
         </td>
         <td align="right" valign="middle">
@@ -418,7 +418,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
   }
 
   if (decision === "suspended") {
-    const subject = "Account Suspended — ServiceMarket";
+    const subject = "Account Suspended — EliteCrew";
     const remarksBlock = remarks
       ? `<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 28px;">
           <tr><td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:18px 20px;">
@@ -454,7 +454,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
     <td style="padding:48px 40px 40px;">
       <h1 style="margin:0 0 12px;font-size:26px;font-weight:900;color:#09090b;letter-spacing:-0.5px;">Account Suspended</h1>
       <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.7;">
-        Hi <strong>${providerName}</strong>, your ServiceMarket provider account has been <strong style="color:#09090b;">temporarily suspended</strong>. You will not receive new job offers during this period.
+        Hi <strong>${providerName}</strong>, your EliteCrew provider account has been <strong style="color:#09090b;">temporarily suspended</strong>. You will not receive new job offers during this period.
       </p>
       ${remarksBlock}
       <p style="margin:0 0 36px;font-size:14px;color:#71717a;line-height:1.6;">
@@ -474,7 +474,7 @@ function buildDecisionEmail(providerName, decision, remarks) {
     <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 40px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
         <td>
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#09090b;">ServiceMarket</p>
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#09090b;">EliteCrew</p>
           <p style="margin:0;font-size:12px;color:#a1a1aa;">Professional Home Services Platform</p>
         </td>
         <td align="right" valign="middle">
@@ -498,7 +498,7 @@ async function sendProviderDecisionEmail(to, providerName, decision, remarks) {
   const result = buildDecisionEmail(providerName, decision, remarks);
   if (!result) return;
   await transporter.sendMail({
-    from: `"ServiceMarket" <${process.env.SMTP_FROM}>`,
+    from: `"EliteCrew" <${process.env.SMTP_FROM}>`,
     to,
     subject: result.subject,
     html: result.html,
@@ -527,13 +527,13 @@ function emailShell(accentColor, badgeLabel, bodyHtml) {
   <tr>
     <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td><p style="margin:0;font-size:12px;font-weight:700;color:#09090b;">ServiceMarket</p><p style="margin:0;font-size:11px;color:#a1a1aa;">Professional Home Services</p></td>
+        <td><p style="margin:0;font-size:12px;font-weight:700;color:#09090b;">EliteCrew</p><p style="margin:0;font-size:11px;color:#a1a1aa;">Professional Home Services</p></td>
         <td align="right"><p style="margin:0;font-size:11px;color:#d4d4d8;text-align:right;">Automated notification.<br/>Do not reply.</p></td>
       </tr></table>
     </td>
   </tr>
 </table>
-<p style="margin:16px 0 0;font-size:11px;color:#a1a1aa;text-align:center;">© ${new Date().getFullYear()} ServiceMarket</p>
+<p style="margin:16px 0 0;font-size:11px;color:#a1a1aa;text-align:center;">© ${new Date().getFullYear()} EliteCrew</p>
 </td></tr></table>
 </body></html>`;
 }
@@ -573,9 +573,9 @@ async function sendBookingConfirmedEmail(to, name, booking) {
     </tr></table>`;
 
   await transporter.sendMail({
-    from: `"ServiceMarket" <${process.env.SMTP_FROM}>`,
+    from: `"EliteCrew" <${process.env.SMTP_FROM}>`,
     to,
-    subject: `Booking Confirmed — ${booking.serviceName} | ServiceMarket`,
+    subject: `Booking Confirmed — ${booking.serviceName} | EliteCrew`,
     html: emailShell("#000000", "Booking Confirmed", body),
   });
 }
@@ -599,9 +599,9 @@ async function sendNewJobEmail(to, providerName, booking, customerName = "") {
     </tr></table>`;
 
   await transporter.sendMail({
-    from: `"ServiceMarket" <${process.env.SMTP_FROM}>`,
+    from: `"EliteCrew" <${process.env.SMTP_FROM}>`,
     to,
-    subject: `New Job: ${booking.serviceName} on ${date} | ServiceMarket`,
+    subject: `New Job: ${booking.serviceName} on ${date} | EliteCrew`,
     html: emailShell("#f59e0b", "New Job", body),
   });
 }
@@ -622,9 +622,9 @@ async function sendJobAcceptedEmail(to, customerName, booking, providerName) {
     </tr></table>`;
 
   await transporter.sendMail({
-    from: `"ServiceMarket" <${process.env.SMTP_FROM}>`,
+    from: `"EliteCrew" <${process.env.SMTP_FROM}>`,
     to,
-    subject: `${providerName} is confirmed for your booking | ServiceMarket`,
+    subject: `${providerName} is confirmed for your booking | EliteCrew`,
     html: emailShell("#059669", "Provider Confirmed", body),
   });
 }
@@ -664,13 +664,13 @@ async function sendJobCompletedEmail(to, customerName, booking, providerInfo = {
     </tr></table>`;
 
   await transporter.sendMail({
-    from: `"ServiceMarket" <${process.env.SMTP_FROM}>`,
+    from: `"EliteCrew" <${process.env.SMTP_FROM}>`,
     to,
-    subject: `Invoice Ready — ${booking.bookingNumber} | ServiceMarket`,
+    subject: `Invoice Ready — ${booking.bookingNumber} | EliteCrew`,
     html: emailShell("#059669", "Invoice Ready", body),
     attachments: [
       {
-        filename: `ServiceMarket-Invoice-${booking.bookingNumber || booking._id}.pdf`,
+        filename: `EliteCrew-Invoice-${booking.bookingNumber || booking._id}.pdf`,
         content: invoicePdf,
         contentType: "application/pdf",
       },

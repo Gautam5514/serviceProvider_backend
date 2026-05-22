@@ -88,7 +88,7 @@ app.use(mongoSanitize());
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/", (_req, res) => {
-  res.json({ success: true, message: "Service Marketplace API is running." });
+  res.json({ success: true, message: "EliteCrewplace API is running." });
 });
 
 // ─── API routes ───────────────────────────────────────────────────────────────

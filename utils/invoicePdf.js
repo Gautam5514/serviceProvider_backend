@@ -27,7 +27,7 @@ async function generateInvoicePdf({ booking, customerName, providerName, provide
     doc.on("error", reject);
 
     // --- 1. HEADER ---
-    doc.fillColor("#000000").fontSize(20).font("Helvetica-Bold").text("ServiceMarket", 40, 40);
+    doc.fillColor("#000000").fontSize(20).font("Helvetica-Bold").text("EliteCrew", 40, 40);
     doc.fontSize(10).font("Helvetica").fillColor("#555555").text("Professional Home Services", 40, 65);
 
     doc.fontSize(16).font("Helvetica-Bold").fillColor("#000000").text("TAX INVOICE", 400, 40, { align: "right" });
@@ -119,13 +119,13 @@ async function generateInvoicePdf({ booking, customerName, providerName, provide
 
     // Declaration
     doc.fontSize(8).fillColor("#71717a").text(
-      "Declaration: This is a computer-generated invoice and does not require a physical signature. The services listed are rendered by the service partner mentioned above. ServiceMarket acts as a facilitator between the customer and the service partner.",
+      "Declaration: This is a computer-generated invoice and does not require a physical signature. The services listed are rendered by the service partner mentioned above. EliteCrew acts as a facilitator between the customer and the service partner.",
       40,
       720,
       { align: "left", width: 515 }
     );
 
-    doc.fontSize(10).fillColor("#000000").font("Helvetica-Bold").text("Thank you for using ServiceMarket!", 40, 770, { align: "center", width: 515 });
+    doc.fontSize(10).fillColor("#000000").font("Helvetica-Bold").text("Thank you for using EliteCrew!", 40, 770, { align: "center", width: 515 });
 
     doc.end();
   });

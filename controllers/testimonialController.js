@@ -7,7 +7,7 @@ const catchAsync  = require("../utils/catchAsync");
 // Inserted once if the collection has no seed rows.
 const SEED_ROWS = [
   { name: "Priya Sharma",  city: "Mumbai",    rating: 5, avatar: "PS", category: "ac",          service: "AC Repair",          text: "Booked at 10 PM, technician was at my door by 9 AM. Fixed in under an hour. Pricing was exactly as shown — no hidden charges." },
-  { name: "Rahul Verma",   city: "Bangalore", rating: 5, avatar: "RV", category: "electrical",  service: "Electrical Work",    text: "Had an electrical fault for weeks. The ServiceMarket technician diagnosed and fixed it in 30 minutes. Clean work, zero mess." },
+  { name: "Rahul Verma",   city: "Bangalore", rating: 5, avatar: "RV", category: "electrical",  service: "Electrical Work",    text: "Had an electrical fault for weeks. The EliteCrew technician diagnosed and fixed it in 30 minutes. Clean work, zero mess." },
   { name: "Anjali Mehra",  city: "Delhi",     rating: 4, avatar: "AM", category: "ac",          service: "AC Deep Cleaning",   text: "AC deep cleaning was incredibly thorough. Punctual, courteous, and my unit runs like new. Already re-booked for next season." },
   { name: "Vikram Goel",   city: "Hyderabad", rating: 5, avatar: "VG", category: "fridge",      service: "Fridge Repair",      text: "Our double-door fridge stopped cooling suddenly. The technician replaced the defrost heater quickly. Exceptional knowledge and service." },
   { name: "Sandhya R.",    city: "Chennai",   rating: 4, avatar: "SR", category: "appliance",   service: "Washing Machine",    text: "Very professional washing machine service. Explained the drum issue clearly and fixed it inside an hour. Highly recommended!" },
